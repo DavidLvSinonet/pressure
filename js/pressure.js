@@ -1,4 +1,4 @@
-// Pressure v2.1.0 | Created By Stuart Yamartino | MIT License | 2015 - 2017
+// Pressure v2.1.1 | Created By Stuart Yamartino | MIT License | 2015 - 2017
 ;(function(root, factory) {
   if (typeof define === 'function' && define.amd) {
     define([], factory);
@@ -61,13 +61,13 @@ var Element = function () {
       if (supportsPointer && (type === 'pointer' || type === null)) {
         this.adapter = new AdapterPointer(el, block, options).bindEvents();
       }
-      // for devices that support Force Touch
-      else if (supportsMouse && (type === 'mouse' || type === null)) {
-          this.adapter = new AdapterForceTouch(el, block, options).bindEvents();
+      // for devices that support 3D Touch
+      else if (supportsTouch && (type === 'touch' || type === null)) {
+          this.adapter = new Adapter3DTouch(el, block, options).bindEvents();
         }
-        // for devices that support 3D Touch
-        else if (supportsTouch && (type === 'touch' || type === null)) {
-            this.adapter = new Adapter3DTouch(el, block, options).bindEvents();
+        // for devices that support Force Touch
+        else if (supportsMouse && (type === 'mouse' || type === null)) {
+            this.adapter = new AdapterForceTouch(el, block, options).bindEvents();
           }
           // unsupported if it is requesting a type and your browser is of other type
           else {
@@ -373,7 +373,7 @@ var Adapter3DTouch = function (_Adapter2) {
     key: 'startLegacy',
     value: function startLegacy(event) {
       this.initialForce = event.touches[0].force;
-      this.supportLegacyTest(0, event, this.runKey, this.initialForce);
+      this.supportLegacy(0, event, this.runKey, this.initialForce);
     }
 
     // this checks up to 6 times on a touch to see if the touch can read a force value
@@ -388,7 +388,7 @@ var Adapter3DTouch = function (_Adapter2) {
         this.loopForce(event);
       } else if (iter <= 6) {
         iter++;
-        setTimeout(this.supportLegacyTest.bind(this, iter, event, runKey, force), 10);
+        setTimeout(this.supportLegacy.bind(this, iter, event, runKey, force), 10);
       } else {
         this.fail(event, runKey);
       }
@@ -413,7 +413,7 @@ var Adapter3DTouch = function (_Adapter2) {
       } else {
         for (var i = 0; i < event.touches.length; i++) {
           // if the target press is on this element
-          if (event.touches[i].target === this.el) {
+          if (event.touches[i].target === this.el || this.el.contains(event.touches[i].target)) {
             return this.returnTouch(event.touches[i], event);
           }
         }
@@ -553,11 +553,21 @@ var _map = function _map(x, in_min, in_max, out_min, out_max) {
 var supportsMouse = false;
 var supportsTouch = false;
 var supportsPointer = false;
+var supportsTouchForce = false;
 var supportsTouchForceChange = false;
+
 if (typeof window !== 'undefined') {
   // only attempt to assign these in a browser environment.
   // on the server, this is a no-op, like the rest of the library
-  supportsTouch = 'ontouchstart' in window.document;
+  if (typeof Touch !== 'undefined') {
+    // In Android, new Touch requires arguments.
+    try {
+      if (Touch.prototype.hasOwnProperty('force') || 'force' in new Touch()) {
+        supportsTouchForce = true;
+      }
+    } catch (e) {}
+  }
+  supportsTouch = 'ontouchstart' in window.document && supportsTouchForce;
   supportsMouse = 'onmousemove' in window.document && !supportsTouch;
   supportsPointer = 'onpointermove' in window.document;
   supportsTouchForceChange = 'ontouchforcechange' in window.document;
